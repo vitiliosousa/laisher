@@ -19,21 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Project } from "@/types/types";
 
-interface Project {
-  id: number;
-  title: string;
-  description: string;
-  category: string;
-  image: string;
-  createdAt: string;
-  status: "published" | "draft";
-}
 
 interface ProjectFormModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   project?: Project | null;
+  onSave: (data: Omit<Project, 'id' | 'createdAt'>, id?: number) => void;
 }
 
 const categories = ["Residencial", "Comercial", "Institucional"];
@@ -42,6 +35,7 @@ export default function ProjectFormModal({
   isOpen,
   onOpenChange,
   project,
+  onSave,
 }: ProjectFormModalProps) {
   const [formData, setFormData] = useState({
     title: project?.title || "",
@@ -60,15 +54,23 @@ export default function ProjectFormModal({
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
+        const result = e.target?.result as string;
+        setImagePreview(result);
+        setFormData({ ...formData, image: result });
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSaveProject = () => {
-    // Implementar lógica de salvamento
-    onOpenChange(false);
+   
+  const handleSubmit = () => {
+    onSave({
+      title: formData.title,
+      description: formData.description,
+      category: formData.category,
+      image: imagePreview || "/placeholder.svg",
+      status: formData.status,
+    }, project?.id);
   };
 
   return (
@@ -203,7 +205,7 @@ export default function ProjectFormModal({
             Cancelar
           </Button>
           <Button
-            onClick={handleSaveProject}
+            onClick={handleSubmit}
             className="bg-emerald-600 hover:bg-emerald-700"
             disabled={
               !formData.title || !formData.description || !formData.category

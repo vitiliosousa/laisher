@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Grid, List } from "lucide-react";
-import ProjectsStats from "../ProjectsStats";
-import ProjectsFilters from "../ProjectsFilters";
-import ProjectsList from "../ProjectsList";
-import ProjectFormModal from "../ProjectFormModal";
+import { Plus } from "lucide-react";
+import ProjectsStats from "./ProjectsStats";
+import ProjectsFilters from "./ProjectsFilters";
+import ProjectsList from "./ProjectsList";
+import ProjectFormModal from "./ProjectFormModal";
+import { Project } from "@/types/types";
 
-export default function AdminDashboard({ projects }: { projects: Project[] }) {
+export default function AdminDashboard({ initialProjects }: { initialProjects: Project[] }) {
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -19,6 +20,31 @@ export default function AdminDashboard({ projects }: { projects: Project[] }) {
   const handleNewProject = () => {
     setEditingProject(null);
     setIsModalOpen(true);
+  };
+
+  const handleSaveProject = (projectData: Omit<Project, 'id' | 'createdAt'>, id?: number) => {
+    if (id) {
+      // Editar projeto existente
+      setProjects(projects.map(p => 
+        p.id === id 
+          ? { ...p, ...projectData } 
+          : p
+      ));
+    } else {
+      // Criar novo projeto
+      const newProject: Project = {
+        id: Math.max(0, ...projects.map(p => p.id)) + 1,
+        ...projectData,
+        createdAt: new Date().toISOString().split('T')[0],
+        image: projectData.image || "/placeholder.svg",
+      };
+      setProjects([newProject, ...projects]);
+    }
+    setIsModalOpen(false);
+  };
+
+  const handleDeleteProject = (id: number) => {
+    setProjects(projects.filter(p => p.id !== id));
   };
 
   return (
@@ -53,14 +79,19 @@ export default function AdminDashboard({ projects }: { projects: Project[] }) {
         searchTerm={searchTerm}
         filterCategory={filterCategory}
         viewMode={viewMode}
-        onEdit={setEditingProject}
-        onModalOpen={setIsModalOpen}
+        onEdit={(project) => {
+          setEditingProject(project);
+          setIsModalOpen(true);
+        }}
+        onDelete={handleDeleteProject}
+        
       />
 
       <ProjectFormModal
         isOpen={isModalOpen}
         onOpenChange={setIsModalOpen}
         project={editingProject}
+        onSave={handleSaveProject}
       />
     </>
   );

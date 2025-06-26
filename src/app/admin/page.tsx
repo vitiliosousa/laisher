@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useState } from "react";
+import { uploadImage } from "@/lib/uploadImage";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import AdminHeader from "@/components/admin-header";
@@ -59,7 +60,6 @@ interface Project {
 export default function AdminPage() {
   const router = useRouter();
 
-  // Verificar autenticação
   useEffect(() => {
     const token = localStorage.getItem("admin_token");
     if (!token) {
@@ -67,48 +67,23 @@ export default function AdminPage() {
     }
   }, [router]);
 
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: 1,
-      title: "Casa Moderna Minimalista",
-      description:
-        "Uma residência contemporânea que combina linhas limpas com materiais naturais, criando um ambiente sofisticado e acolhedor.",
-      category: "Residencial",
-      image: "/placeholder.svg?height=300&width=400",
-      createdAt: "2024-01-15",
-      status: "published",
-    },
-    {
-      id: 2,
-      title: "Escritório Corporativo Tech",
-      description:
-        "Espaço de trabalho inovador para empresa de tecnologia com áreas colaborativas e design futurista.",
-      category: "Comercial",
-      image: "/placeholder.svg?height=300&width=400",
-      createdAt: "2024-01-10",
-      status: "published",
-    },
-    {
-      id: 3,
-      title: "Loft Industrial Convertido",
-      description:
-        "Transformação de antigo galpão industrial em loft residencial moderno com elementos industriais preservados.",
-      category: "Residencial",
-      image: "/placeholder.svg?height=300&width=400",
-      createdAt: "2024-01-05",
-      status: "draft",
-    },
-    {
-      id: 4,
-      title: "Centro Médico Integrado",
-      description:
-        "Complexo médico com foco no bem-estar dos pacientes e eficiência operacional.",
-      category: "Institucional",
-      image: "/placeholder.svg?height=300&width=400",
-      createdAt: "2023-12-20",
-      status: "published",
-    },
-  ]);
+  const [projects, setProjects] = useState<Project[]>([])
+
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch("/api/projects")
+      if (!res.ok) throw new Error("Erro ao buscar projetos")
+      const data = await res.json()
+      setProjects(data)
+    } catch (err) {
+      console.error("Erro:", err)
+    }
+  }
+
+  useEffect(() => {
+    fetchProjects()
+  }, [])
+  
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -154,38 +129,71 @@ export default function AdminPage() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteProject = (id: number) => {
-    setProjects(projects.filter((p) => p.id !== id));
-  };
+ const handleDeleteProject = async (id: number) => {
+    const res = await fetch(`/api/projects/${id}`, {
+      method: "DELETE",
+    })
 
-  const handleSaveProject = () => {
-    if (editingProject) {
-      setProjects(
-        projects.map((p) =>
-          p.id === editingProject.id
-            ? { ...p, ...formData, image: imagePreview || p.image }
-            : p
-        )
-      );
+    if (res.ok) {
+      setProjects((prev) => prev.filter((proj) => proj.id !== id))
     } else {
-      const newProject: Project = {
-        id: Math.max(...projects.map((p) => p.id)) + 1,
-        ...formData,
-        image: imagePreview || "/placeholder.svg?height=300&width=400",
-        createdAt: new Date().toISOString().split("T")[0],
-      };
-      setProjects([newProject, ...projects]);
+      alert("Erro ao excluir projeto")
     }
-    setIsModalOpen(false);
-  };
+  }
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+ const handleSaveProject = async () => {
+  let imageUrl = formData.image // pode já existir ao editar
+
+  // Se for novo upload
+  if (imageFile) {
+    const uploaded = await uploadImage(imageFile)
+    if (!uploaded) {
+      alert("Falha ao enviar imagem.")
+      return
+    }
+    imageUrl = uploaded
+  }
+
+  const payload = {
+    ...formData,
+    image: imageUrl,
+  }
+
+  const method = editingProject ? "PUT" : "POST"
+  const endpoint = editingProject
+    ? `/api/projects/${editingProject.id}`
+    : `/api/projects`
+
+  const res = await fetch(endpoint, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+
+  const result = await res.json()
+
+  if (!res.ok) {
+    alert(result.error || "Erro ao salvar projeto.")
+    return
+  }
+
+  // resetar estado ou fechar modal
+  setFormData({ title: "", description: "", category: "", status: "draft", image: "" })
+  setImageFile(null)
+  setImagePreview(null)
+  setIsModalOpen(false)
+  setEditingProject(null);
+}
+
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
+      setImageFile(file);
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
-      };
+      reader.onloadend = () => setImagePreview(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -346,156 +354,67 @@ export default function AdminPage() {
             </Card>
           </div>
 
-          {/* Lista de Projetos */}
-          <div
-            className={
-              viewMode === "grid"
-                ? "grid md:grid-cols-2 lg:grid-cols-3 gap-6"
-                : "space-y-4"
-            }
-          >
-            {filteredProjects.map((project) => (
-              <Card
-                key={project.id}
-                className="bg-white hover:shadow-lg transition-shadow"
-              >
-                {viewMode === "grid" ? (
-                  <>
-                    <div className="relative aspect-[4/3] overflow-hidden rounded-t-lg">
-                      <Image
-                        src={project.image || "/placeholder.svg"}
-                        alt={project.title}
-                        fill
-                        className="object-cover"
-                      />
-                      <div className="absolute top-3 left-3">
-                        <Badge
-                          variant={
-                            project.status === "published"
-                              ? "default"
-                              : "secondary"
-                          }
-                        >
-                          {project.status === "published"
-                            ? "Publicado"
-                            : "Rascunho"}
-                        </Badge>
-                      </div>
-                      <div className="absolute top-3 right-3">
-                        <Badge variant="outline" className="bg-white/90">
-                          {project.category}
-                        </Badge>
-                      </div>
-                    </div>
-                    <CardContent className="p-6">
-                      <div className="space-y-3">
-                        <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">
-                          {project.title}
-                        </h3>
-                        <p className="text-gray-600 text-sm line-clamp-2">
-                          {project.description}
-                        </p>
-                        <div className="text-xs text-gray-500">
-                          Criado em{" "}
-                          {new Date(project.createdAt).toLocaleDateString(
-                            "pt-BR"
-                          )}
-                        </div>
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEditProject(project)}
-                            className="flex-1"
-                          >
-                            <Edit className="mr-1 h-3 w-3" />
-                            Editar
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Excluir Projeto
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja excluir o projeto "
-                                  {project.title}"? Esta ação não pode ser
-                                  desfeita.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() =>
-                                    handleDeleteProject(project.id)
-                                  }
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Excluir
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </>
-                ) : (
-                  <CardContent className="p-6">
-                    <div className="flex gap-4">
-                      <div className="relative w-24 h-24 flex-shrink-0 overflow-hidden rounded-lg">
+            {/* Lista de Projetos */}
+            <div
+              className={
+                viewMode === "grid"
+                  ? "grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  : "space-y-4"
+              }
+            >
+              {filteredProjects.map((project) => (
+                <Card
+                  key={project.id}
+                  className="bg-white hover:shadow-lg transition-shadow"
+                >
+                  {viewMode === "grid" ? (
+                    <>
+                      <div className="relative aspect-[4/3] overflow-hidden rounded-t-lg">
                         <Image
                           src={project.image || "/placeholder.svg"}
                           alt={project.title}
                           fill
                           className="object-cover"
                         />
+                        <div className="absolute top-3 left-3">
+                          <Badge
+                            variant={
+                              project.status === "published"
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
+                            {project.status === "published"
+                              ? "Publicado"
+                              : "Rascunho"}
+                          </Badge>
+                        </div>
+                        <div className="absolute top-3 right-3">
+                          <Badge variant="outline" className="bg-white/90">
+                            {project.category}
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-lg font-semibold text-gray-900 truncate">
-                              {project.title}
-                            </h3>
-                            <p className="text-gray-600 text-sm line-clamp-2 mt-1">
-                              {project.description}
-                            </p>
-                            <div className="flex items-center gap-3 mt-2">
-                              <Badge variant="outline">
-                                {project.category}
-                              </Badge>
-                              <Badge
-                                variant={
-                                  project.status === "published"
-                                    ? "default"
-                                    : "secondary"
-                                }
-                              >
-                                {project.status === "published"
-                                  ? "Publicado"
-                                  : "Rascunho"}
-                              </Badge>
-                              <span className="text-xs text-gray-500">
-                                {new Date(project.createdAt).toLocaleDateString(
-                                  "pt-BR"
-                                )}
-                              </span>
-                            </div>
+                      <CardContent className="p-6">
+                        <div className="space-y-3">
+                          <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">
+                            {project.title}
+                          </h3>
+                          <p className="text-gray-600 text-sm line-clamp-2">
+                            {project.description}
+                          </p>
+                          <div className="text-xs text-gray-500">
+                            Criado em{" "}
+                            {new Date(project.createdAt).toLocaleDateString(
+                              "pt-BR"
+                            )}
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 pt-2">
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => handleEditProject(project)}
+                              className="flex-1"
                             >
                               <Edit className="mr-1 h-3 w-3" />
                               Editar
@@ -522,9 +441,7 @@ export default function AdminPage() {
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel>
-                                    Cancelar
-                                  </AlertDialogCancel>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={() =>
                                       handleDeleteProject(project.id)
@@ -538,13 +455,104 @@ export default function AdminPage() {
                             </AlertDialog>
                           </div>
                         </div>
+                      </CardContent>
+                    </>
+                  ) : (
+                    <CardContent className="p-6">
+                      <div className="flex gap-4">
+                        <div className="relative w-24 h-24 flex-shrink-0 overflow-hidden rounded-lg">
+                          <Image
+                            src={project.image || "/placeholder.svg"}
+                            alt={project.title}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-lg font-semibold text-gray-900 truncate">
+                                {project.title}
+                              </h3>
+                              <p className="text-gray-600 text-sm line-clamp-2 mt-1">
+                                {project.description}
+                              </p>
+                              <div className="flex items-center gap-3 mt-2">
+                                <Badge variant="outline">
+                                  {project.category}
+                                </Badge>
+                                <Badge
+                                  variant={
+                                    project.status === "published"
+                                      ? "default"
+                                      : "secondary"
+                                  }
+                                >
+                                  {project.status === "published"
+                                    ? "Publicado"
+                                    : "Rascunho"}
+                                </Badge>
+                                <span className="text-xs text-gray-500">
+                                  {new Date(project.createdAt).toLocaleDateString(
+                                    "pt-BR"
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEditProject(project)}
+                              >
+                                <Edit className="mr-1 h-3 w-3" />
+                                Editar
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Excluir Projeto
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Tem certeza que deseja excluir o projeto "
+                                      {project.title}"? Esta ação não pode ser
+                                      desfeita.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Cancelar
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() =>
+                                        handleDeleteProject(project.id)
+                                      }
+                                      className="bg-red-600 hover:bg-red-700"
+                                    >
+                                      Excluir
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                )}
-              </Card>
-            ))}
-          </div>
+                    </CardContent>
+                  )}
+                </Card>
+              ))}
+            </div>
 
           {filteredProjects.length === 0 && (
             <Card className="bg-white">
@@ -635,9 +643,7 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-black">
-                  Status
-                </label>
+                <label className="text-sm font-medium text-black">Status</label>
                 <Select
                   value={formData.status}
                   onValueChange={(value) =>

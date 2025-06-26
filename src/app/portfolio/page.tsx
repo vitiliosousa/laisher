@@ -1,11 +1,7 @@
 'use client'
 import Image from 'next/image'
-import modernArch1 from '@/assets/modern-architecture-1.jpg'
-import modernArch2 from '@/assets/modern-architecture-2.jpg'
-import modernArch3 from '@/assets/modern-architecture-3.jpg'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { ArrowRight } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { projects } from '@/data/projects'
 

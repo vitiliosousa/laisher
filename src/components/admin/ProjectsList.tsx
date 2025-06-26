@@ -14,17 +14,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import EmptyState from "@/components/EmptyState";
+import EmptyState from "@/components/admin/EmptyState";
+import { Project } from "@/types/types";
 
-interface Project {
-  id: number;
-  title: string;
-  description: string;
-  category: string;
-  image: string;
-  createdAt: string;
-  status: "published" | "draft";
-}
+
 
 interface ProjectsListProps {
   projects: Project[];
@@ -32,8 +25,10 @@ interface ProjectsListProps {
   filterCategory: string;
   viewMode: "grid" | "list";
   onEdit: (project: Project) => void;
-  onModalOpen: (open: boolean) => void;
+  onDelete: (id: number) => void;
+  
 }
+
 
 export default function ProjectsList({
   projects,
@@ -41,8 +36,9 @@ export default function ProjectsList({
   filterCategory,
   viewMode,
   onEdit,
-  onModalOpen,
+  onDelete,
 }: ProjectsListProps) {
+
   const filteredProjects = projects.filter((project) => {
     const matchesSearch =
       project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -52,16 +48,11 @@ export default function ProjectsList({
     return matchesSearch && matchesCategory;
   });
 
-  const handleDeleteProject = (id: number) => {
-    // Implementar lógica de deleção
-  };
+  
 
   if (filteredProjects.length === 0) {
     return (
-      <EmptyState 
-        hasSearch={!!searchTerm || filterCategory !== "all"}
-        onNewProject={() => onModalOpen(true)}
-      />
+      <h1>Nenhum projeto encontrado</h1>
     );
   }
 
@@ -73,7 +64,7 @@ export default function ProjectsList({
           project={project}
           viewMode={viewMode}
           onEdit={() => onEdit(project)}
-          onDelete={() => handleDeleteProject(project.id)}
+          onDelete={() => onDelete(project.id)}
         />
       ))}
     </div>
