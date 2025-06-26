@@ -3,9 +3,33 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
-import { projects } from '@/data/projects'
+import { Project } from '@/types/types'
+import { useEffect, useState } from 'react'
 
 export default function PortfolioPage() {
+  const [projects, setProjects] = useState<Project[]>([])
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const res = await fetch('/api/projects')
+        if (!res.ok) throw new Error('Erro ao buscar projetos')
+        const data = await res.json()
+
+        const publishedProjects = data.filter(
+        (project: Project) => project.status === "published"
+      )
+
+
+        setProjects(publishedProjects)
+      } catch (err) {
+        console.error('Erro ao buscar projetos:', err)
+      }
+    }
+
+    fetchProjects()
+  }, [])
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
