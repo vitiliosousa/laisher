@@ -14,7 +14,7 @@ export default function BackgroundCarousel() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % images.length)
-    }, 5000) // Change slide every 5 seconds
+    }, 10000) // Change slide every 5 seconds
 
     return () => clearInterval(timer)
   }, [images.length])

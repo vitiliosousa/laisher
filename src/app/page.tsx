@@ -27,15 +27,13 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/contact">
                 <Button 
-                  className="bg-white text-emerald-700 hover:bg-slate-100  px-8 py-5"
-                >
+                  className="bg-white text-emerald-700 hover:bg-slate-100  px-8 py-5">
                   Entre em Contato
                 </Button>
               </Link>
               <Link href="/about">
                 <Button 
-                  className="border-white text-white hover:bg-white hover:text-emerald-700 px-8 py-5"
-                >
+                  className="border-white text-white hover:bg-zinc-800 px-8 py-5">
                   Conheça Nossa Empresa
                 </Button>
               </Link>

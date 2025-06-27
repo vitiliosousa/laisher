@@ -16,8 +16,8 @@ export default function Projects() {
         const data = await res.json();
 
         const publishedProjects = data.filter(
-        (project: Project) => project.status === "published"
-      )
+          (project: Project) => project.status === "published"
+        );
 
         setProjects(publishedProjects);
       } catch (err) {
@@ -41,9 +41,9 @@ export default function Projects() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 mb-12">
-          {projects.slice(0,4).map((project, index) => (
+          {projects.slice(0, 4).map((project, index) => (
             <div
-              key={index}
+              key={project.id || index}
               className="group relative overflow-hidden rounded-lg shadow-lg"
             >
               <Image
@@ -54,10 +54,12 @@ export default function Projects() {
                 className="w-full h-80 object-cover group-hover:scale-105 transition-transform duration-300"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute bottom-6 left-6 text-white">
-                <div className="text-sm font-medium text-emerald-300 mb-1">
+
+              <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black/70 to-transparent text-white">
+                
+                <p className="text-sm font-medium text-emerald-300 mt-1 opacity-0 translate-y-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0">
                   {project.description}
-                </div>
+                </p>
                 <h3 className="text-xl font-bold">{project.title}</h3>
               </div>
             </div>
