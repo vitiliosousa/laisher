@@ -46,6 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 interface Project {
   id: number;
@@ -60,36 +61,44 @@ interface Project {
 export default function AdminPage() {
   const router = useRouter();
 
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
     const token = localStorage.getItem("admin_token");
+
     if (!token) {
       router.push("/admin/login");
+    } else {
+      setIsLoading(false);
     }
   }, [router]);
 
-  const [projects, setProjects] = useState<Project[]>([])
+  const [projects, setProjects] = useState<Project[]>([]);
 
   const fetchProjects = async () => {
     try {
-      const res = await fetch("/api/projects")
-      if (!res.ok) throw new Error("Erro ao buscar projetos")
-      const data = await res.json()
-      setProjects(data)
+      const res = await fetch("/api/projects");
+      if (!res.ok) throw new Error("Erro ao buscar projetos");
+      const data = await res.json();
+      setProjects(data);
     } catch (err) {
-      console.error("Erro:", err)
+      console.error("Erro:", err);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchProjects()
-  }, [])
-  
+    fetchProjects();
+  }, []);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
+
+  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeletingId, setIsDeletingId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -101,7 +110,19 @@ export default function AdminPage() {
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const categories = ["Residencial", "Comercial", "Institucional"];
+  const categories = [
+    "Residencial",
+    "Comercial",
+    "Institucional",
+    "Industrial",
+    "Urbanismo",
+    "Cultural",
+    "Paisagismo",
+    "Interiores",
+    "Turismo e Lazer",
+    "Religioso",
+    "Restauração",
+  ];
 
   const handleNewProject = () => {
     setEditingProject(null);
@@ -129,62 +150,89 @@ export default function AdminPage() {
     setIsModalOpen(true);
   };
 
- const handleDeleteProject = async (id: number) => {
-    const res = await fetch(`/api/projects/${id}`, {
-      method: "DELETE",
-    })
+  const handleDeleteProject = async (id: number) => {
+    setIsDeletingId(id);
 
-    if (res.ok) {
-      setProjects((prev) => prev.filter((proj) => proj.id !== id))
-    } else {
-      alert("Erro ao excluir projeto")
+    try {
+      const res = await fetch(`/api/projects/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        throw new Error("Erro ao excluir projeto");
+      }
+
+      setProjects((prev) => prev.filter((proj) => proj.id !== id));
+    } catch (error) {
+      console.error("Erro:", error);
+      alert(error);
+    } finally {
+      setIsDeletingId(null);
     }
-  }
+  };
 
- const handleSaveProject = async () => {
-  let imageUrl = formData.image // pode já existir ao editar
+  const handleSaveProject = async () => {
+    // Define o estado de loading apropriado
+    editingProject ? setIsUpdating(true) : setIsCreating(true);
 
-  // Se for novo upload
-  if (imageFile) {
-    const uploaded = await uploadImage(imageFile)
-    if (!uploaded) {
-      alert("Falha ao enviar imagem.")
-      return
+    try {
+      let imageUrl = formData.image;
+
+      // Se for novo upload
+      if (imageFile) {
+        const uploaded = await uploadImage(imageFile);
+        if (!uploaded) {
+          alert("Falha ao enviar imagem.");
+          return;
+        }
+        imageUrl = uploaded;
+      }
+
+      const payload = {
+        ...formData,
+        image: imageUrl,
+      };
+
+      const method = editingProject ? "PUT" : "POST";
+      const endpoint = editingProject
+        ? `/api/projects/${editingProject.id}`
+        : `/api/projects`;
+
+      const res = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || "Erro ao salvar projeto.");
+      }
+
+      // Atualiza a lista de projetos
+      await fetchProjects();
+
+      // Fecha o modal e reseta os estados
+      setIsModalOpen(false);
+      setFormData({
+        title: "",
+        description: "",
+        category: "",
+        status: "draft",
+        image: "",
+      });
+      setImageFile(null);
+      setImagePreview(null);
+      setEditingProject(null);
+    } catch (error) {
+      console.error("Erro:", error);
+      alert(error);
+    } finally {
+      setIsCreating(false);
+      setIsUpdating(false);
     }
-    imageUrl = uploaded
-  }
-
-  const payload = {
-    ...formData,
-    image: imageUrl,
-  }
-
-  const method = editingProject ? "PUT" : "POST"
-  const endpoint = editingProject
-    ? `/api/projects/${editingProject.id}`
-    : `/api/projects`
-
-  const res = await fetch(endpoint, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  })
-
-  const result = await res.json()
-
-  if (!res.ok) {
-    alert(result.error || "Erro ao salvar projeto.")
-    return
-  }
-
-  // resetar estado ou fechar modal
-  setFormData({ title: "", description: "", category: "", status: "draft", image: "" })
-  setImageFile(null)
-  setImagePreview(null)
-  setIsModalOpen(false)
-  setEditingProject(null);
-}
-
+  };
 
   const [imageFile, setImageFile] = useState<File | null>(null);
 
@@ -206,6 +254,14 @@ export default function AdminPage() {
       filterCategory === "all" || project.category === filterCategory;
     return matchesSearch && matchesCategory;
   });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500 text-lg">Verificando autenticação...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
@@ -290,7 +346,7 @@ export default function AdminPage() {
           </div>
 
           {/* Estatísticas */}
-          <div className="grid md:grid-cols-4 gap-6 mb-8">
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
             <Card className="bg-white">
               <CardContent>
                 <div className="flex items-center justify-between">
@@ -338,83 +394,153 @@ export default function AdminPage() {
                 </div>
               </CardContent>
             </Card>
-
-            <Card className="bg-white">
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Este Mês</p>
-                    <p className="text-2xl font-bold text-purple-600">3</p>
-                  </div>
-                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Filter className="h-6 w-6 text-purple-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
-            {/* Lista de Projetos */}
-            <div
-              className={
-                viewMode === "grid"
-                  ? "grid md:grid-cols-2 lg:grid-cols-3 gap-6"
-                  : "space-y-4"
-              }
-            >
-              {filteredProjects.map((project) => (
-                <Card
-                  key={project.id}
-                  className="bg-white hover:shadow-lg transition-shadow"
-                >
-                  {viewMode === "grid" ? (
-                    <>
-                      <div className="relative aspect-[4/3] overflow-hidden rounded-t-lg">
+          {/* Lista de Projetos */}
+          <div
+            className={
+              viewMode === "grid"
+                ? "grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+                : "space-y-4"
+            }
+          >
+            {filteredProjects.map((project) => (
+              <Card
+                key={project.id}
+                className="bg-white hover:shadow-lg transition-shadow"
+              >
+                {viewMode === "grid" ? (
+                  <>
+                    <div className="relative aspect-[4/3] overflow-hidden rounded-t-lg">
+                      <Image
+                        src={project.image || "/placeholder.svg"}
+                        alt={project.title}
+                        fill
+                        className="object-cover"
+                      />
+                      <div className="absolute top-3 left-3">
+                        <Badge
+                          variant={
+                            project.status === "published"
+                              ? "default"
+                              : "secondary"
+                          }
+                        >
+                          {project.status === "published"
+                            ? "Publicado"
+                            : "Rascunho"}
+                        </Badge>
+                      </div>
+                      <div className="absolute top-3 right-3">
+                        <Badge variant="outline" className="bg-white/90">
+                          {project.category}
+                        </Badge>
+                      </div>
+                    </div>
+                    <CardContent className="p-6">
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">
+                          {project.title}
+                        </h3>
+                        <p className="text-gray-600 text-sm line-clamp-2">
+                          {project.description}
+                        </p>
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditProject(project)}
+                            className="flex-1"
+                          >
+                            <Edit className="mr-1 h-3 w-3" />
+                            Editar
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Excluir Projeto
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja excluir o projeto "
+                                  {project.title}"? Esta ação não pode ser
+                                  desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() =>
+                                    handleDeleteProject(project.id)
+                                  }
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  {isDeletingId === project.id ? (
+                                    <>
+                                      <LoadingSpinner /> Excluindo...
+                                    </>
+                                  ) : (
+                                    "Excluir"
+                                  )}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </>
+                ) : (
+                  <CardContent className="p-6">
+                    <div className="flex gap-4">
+                      <div className="relative w-24 h-24 flex-shrink-0 overflow-hidden rounded-lg">
                         <Image
                           src={project.image || "/placeholder.svg"}
                           alt={project.title}
                           fill
                           className="object-cover"
                         />
-                        <div className="absolute top-3 left-3">
-                          <Badge
-                            variant={
-                              project.status === "published"
-                                ? "default"
-                                : "secondary"
-                            }
-                          >
-                            {project.status === "published"
-                              ? "Publicado"
-                              : "Rascunho"}
-                          </Badge>
-                        </div>
-                        <div className="absolute top-3 right-3">
-                          <Badge variant="outline" className="bg-white/90">
-                            {project.category}
-                          </Badge>
-                        </div>
                       </div>
-                      <CardContent className="p-6">
-                        <div className="space-y-3">
-                          <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">
-                            {project.title}
-                          </h3>
-                          <p className="text-gray-600 text-sm line-clamp-2">
-                            {project.description}
-                          </p>
-                          <div className="text-xs text-gray-500">
-                            Criado em{" "}
-                            {new Date(project.createdAt).toLocaleDateString(
-                              "pt-BR"
-                            )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-semibold text-gray-900 truncate">
+                              {project.title}
+                            </h3>
+                            <p className="text-gray-600 text-sm line-clamp-2 mt-1">
+                              {project.description}
+                            </p>
+                            <div className="flex items-center gap-3 mt-2">
+                              <Badge variant="outline">
+                                {project.category}
+                              </Badge>
+                              <Badge
+                                variant={
+                                  project.status === "published"
+                                    ? "default"
+                                    : "secondary"
+                                }
+                              >
+                                {project.status === "published"
+                                  ? "Publicado"
+                                  : "Rascunho"}
+                              </Badge>
+                            </div>
                           </div>
-                          <div className="flex gap-2 pt-2">
+                          <div className="flex gap-2">
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => handleEditProject(project)}
-                              className="flex-1"
                             >
                               <Edit className="mr-1 h-3 w-3" />
                               Editar
@@ -441,7 +567,9 @@ export default function AdminPage() {
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogCancel>
+                                    Cancelar
+                                  </AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={() =>
                                       handleDeleteProject(project.id)
@@ -455,104 +583,13 @@ export default function AdminPage() {
                             </AlertDialog>
                           </div>
                         </div>
-                      </CardContent>
-                    </>
-                  ) : (
-                    <CardContent className="p-6">
-                      <div className="flex gap-4">
-                        <div className="relative w-24 h-24 flex-shrink-0 overflow-hidden rounded-lg">
-                          <Image
-                            src={project.image || "/placeholder.svg"}
-                            alt={project.title}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="text-lg font-semibold text-gray-900 truncate">
-                                {project.title}
-                              </h3>
-                              <p className="text-gray-600 text-sm line-clamp-2 mt-1">
-                                {project.description}
-                              </p>
-                              <div className="flex items-center gap-3 mt-2">
-                                <Badge variant="outline">
-                                  {project.category}
-                                </Badge>
-                                <Badge
-                                  variant={
-                                    project.status === "published"
-                                      ? "default"
-                                      : "secondary"
-                                  }
-                                >
-                                  {project.status === "published"
-                                    ? "Publicado"
-                                    : "Rascunho"}
-                                </Badge>
-                                <span className="text-xs text-gray-500">
-                                  {new Date(project.createdAt).toLocaleDateString(
-                                    "pt-BR"
-                                  )}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleEditProject(project)}
-                              >
-                                <Edit className="mr-1 h-3 w-3" />
-                                Editar
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                      Excluir Projeto
-                                    </AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Tem certeza que deseja excluir o projeto "
-                                      {project.title}"? Esta ação não pode ser
-                                      desfeita.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>
-                                      Cancelar
-                                    </AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() =>
-                                        handleDeleteProject(project.id)
-                                      }
-                                      className="bg-red-600 hover:bg-red-700"
-                                    >
-                                      Excluir
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </div>
-                        </div>
                       </div>
-                    </CardContent>
-                  )}
-                </Card>
-              ))}
-            </div>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            ))}
+          </div>
 
           {filteredProjects.length === 0 && (
             <Card className="bg-white">
@@ -724,10 +761,23 @@ export default function AdminPage() {
               onClick={handleSaveProject}
               className="bg-emerald-600 hover:bg-emerald-700"
               disabled={
-                !formData.title || !formData.description || !formData.category
+                !formData.title ||
+                !formData.description ||
+                !formData.category ||
+                isCreating ||
+                isUpdating
               }
             >
-              {editingProject ? "Salvar Alterações" : "Criar Projeto"}
+              {isCreating || isUpdating ? (
+                <div className="flex items-center gap-2">
+                  <LoadingSpinner />{" "}
+                  {editingProject ? "Salvando..." : "Criando..."}
+                </div>
+              ) : editingProject ? (
+                "Salvar Alterações"
+              ) : (
+                "Criar Projeto"
+              )}
             </Button>
           </div>
         </DialogContent>
