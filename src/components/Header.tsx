@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
 import Image from "next/image"
-import laiserLogo from "../assets/laisher-logo.png"
+import laiserLogo from "../assets/laisher-logo.jpg"
 import { X, Menu } from "lucide-react"
 import { Button } from "./ui/button"
 
@@ -32,7 +32,7 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
           <Link href="/" className="flex items-center space-x-3">
-            <Image src={laiserLogo} alt="Laisher Logo" className="h-16 w-auto" />
+            <Image src={laiserLogo} alt="Laisher Logo" className="h-12 w-auto" />
           </Link>
 
           {/* Navegação em telas grandes */}

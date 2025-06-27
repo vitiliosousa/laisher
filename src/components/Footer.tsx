@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { Phone, Mail, MapPin } from "lucide-react"
-import laiserLogo from "@/assets/laisher-logo.png"
+import laiserLogo from "@/assets/laisher-logo.jpg"
 
 const quickLinks = [
   { href: "/", label: "Página inicial" },
