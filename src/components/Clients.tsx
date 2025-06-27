@@ -4,7 +4,7 @@ import Image from "next/image";
 import { clients } from "@/data/clients";
 export default function Clients() {
   return (
-    <section id="portfolio" className="py-2 md:px-44 bg-white">
+    <section id="portfolio" className="py-20 md:px-44 bg-white">
       <div className="container mx-auto px-4 lg:px-6">
         <div className="text-center space-y-4 mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900">

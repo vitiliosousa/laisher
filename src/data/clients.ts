@@ -8,6 +8,7 @@ import machangulo from '@/assets/machangulo.png'
 import mrm from '@/assets/mrm.jpeg'
 import mybucks from '@/assets/mybucks.svg'
 import testoplda from '@/assets/testoplda.png'
+import intellect from '@/assets/intellect.png'
 
 export const clients = [
   {
@@ -33,6 +34,10 @@ export const clients = [
   {
     image: inep,
     title: "INEP",
+  },
+  {
+    image: intellect,
+    title: "Intellect",
   },
   {
     image: machangulo,
