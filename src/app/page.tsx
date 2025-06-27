@@ -5,20 +5,17 @@ import { Button } from '@/components/ui/button'
 import Projects from '@/components/Projects'
 import HeroSection from '@/components/HeroSection'
 import Services from '@/components/Services'
+import Clients from '@/components/Clients'
 
 export default function HomePage() {
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
 
-      {/* Hero Section */}
       <HeroSection/>
-      {/* Projects Section */}
       <Projects/>
-
-      {/* Services Preview */}
       <Services/>
-
+      <Clients/>
       {/* CTA Section */}
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
