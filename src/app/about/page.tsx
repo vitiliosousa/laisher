@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
+import { team } from "@/data/team";
 
 export default function AboutPage() {
   const values = [
@@ -170,6 +171,29 @@ export default function AboutPage() {
           </div>
         </section>
 
+        {/* Team Section */}
+        <section className="py-20">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-black mb-4">Nossa Equipa</h2>
+            <p className="text-lg text-black max-w-2xl mx-auto">
+              Na Laisher Projectos e Serviços, acreditamos que o verdadeiro
+              pilar dos nossos projectos é a nossa equipa técnica. Nossa equipe é constituida por especialistas nas seguintes áreas:
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {team.map((member, index) => (
+              <div
+                key={index}
+                className="bg-white border rounded-xl shadow-sm p-4 flex flex-col items-center text-center hover:shadow-lg transition-shadow">
+                <h4 className="text-xl  text-black">
+                  {member.title}
+                </h4>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* CTA Section */}
         <section className="text-center">
           <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-3xl p-8 md:p-12 text-white">
@@ -180,9 +204,7 @@ export default function AboutPage() {
               empresa a prosperar.
             </p>
             <Link href="/contact">
-              <Button
-                className="bg-white text-emerald-700 hover:bg-slate-100  px-8 py-5"
-              >
+              <Button className="bg-white text-emerald-700 hover:bg-slate-100  px-8 py-5">
                 Entre em Contato
               </Button>
             </Link>

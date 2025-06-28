@@ -46,7 +46,6 @@ export default function Header() {
           <Link href="/contact">
           <Button className="hidden md:flex bg-emerald-600 hover:bg-emerald-500 py-5 px-8">Contactar</Button>
           </Link>
-
           {/* Botão do menu móvel */}
           <button className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}>
             {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
